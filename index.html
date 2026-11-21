@@ -164,6 +164,8 @@ body[data-t=themis] .nm{stroke:rgba(6,10,36,.9);stroke-width:5px}
 body[data-t=themis] .sh{filter:drop-shadow(0 0 16px rgba(120,150,255,.5))}
 body[data-t=themis] #panel{border:1px solid rgba(200,215,255,.3);border-radius:16px;box-shadow:0 12px 40px rgba(2,4,30,.5);backdrop-filter:blur(16px)}
 body[data-t=summer] #panel,body[data-t=summer] #more .mn{color:#fff}
+.ah{stroke:none}body[data-t=themis] .ah{filter:drop-shadow(0 0 4px currentColor)}
+.seg2{display:flex;gap:6px}.seg2 button{flex:1;font-size:13px;padding:6px 8px}
 </style>
 </head>
 <body data-t="sketch">
@@ -212,11 +214,22 @@ const N=id=>S.nodes.find(n=>n.id===id);
 const pt=ev=>{const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
 function fit(){vb.h=vb.w*svg.clientHeight/svg.clientWidth}
 
+function duoSegs(g,a,b){
+  return[[a,b,g.c,g.label],[b,a,g.c2==null?g.c:g.c2,g.label2]].map(([p,q,c,t])=>{
+    const dx=q.x-p.x,dy=q.y-p.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy*20,ny=ux*20,s=R+14,
+    x0=p.x+nx+ux*s,y0=p.y+ny+uy*s,x1=q.x+nx-ux*s,y1=q.y+ny-uy*s;
+    return{q:[x0,y0,(x0+x1)/2,(y0+y1)/2,x1,y1],arr:[x1,y1,ux,uy],c,t,m:[x0+(x1-x0)*.42,y0+(y1-y0)*.42]}})}
 function render(){
   document.body.dataset.t=S.theme;document.body.dataset.f=S.font||'';$('#fnt').value=S.font||'';
   svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   let e='',h='',l='',n='';
   for(const g of S.edges){const a=N(g.a),b=N(g.b);if(!a||!b)continue;
+    if(g.type==='duo'){const on=sel&&sel.t==='e'&&sel.id===g.id;
+      for(const s of duoSegs(g,a,b)){const [x0,y0,,,x1,y1]=s.q,[ax,ay,ux,uy]=s.arr,d=`M${x0} ${y0}L${x1-ux*12} ${y1-uy*12}`,st=`style="stroke:var(--c${s.c});fill:var(--c${s.c});color:var(--c${s.c})"`;
+        e+=`<path class="edge${on?' on':''}" d="${d}" ${st}/><polygon class="ah" points="${ax},${ay} ${ax-ux*16-uy*8},${ay-uy*16+ux*8} ${ax-ux*16+uy*8},${ay-uy*16-ux*8}" ${st}/>`;
+        h+=`<path class="hit" data-e="${g.id}" d="${d}"/>`;
+        if(s.t){const w=lw(s.t)+24;l+=`<g class="lbg" data-e="${g.id}" transform="translate(${s.m[0]} ${s.m[1]})"><rect class="chip" x="${-w/2}" y="-17" width="${w}" height="34"/><text class="lb" y="7">${esc(s.t)}</text></g>`}}
+      continue}
     const on=sel&&sel.t==='e'&&sel.id===g.id,c=`style="stroke:var(--c${g.c});color:var(--c${g.c})"`,
     cx=(a.x+b.x)/2-(b.y-a.y)*.08,cy=(a.y+b.y)/2+(b.x-a.x)*.08,d=`M${a.x} ${a.y}Q${cx} ${cy} ${b.x} ${b.y}`,mx=(a.x+b.x+2*cx)/4,my=(a.y+b.y+2*cy)/4;
     e+=`<path class="edge${on?' on':''}" d="${d}" ${c}/>`+(S.theme==='sketch'?`<path class="edge e2" d="M${a.x+3} ${a.y-2}Q${cx-2} ${cy+3} ${b.x-2} ${b.y+3}" ${c}/>`:'');
@@ -291,9 +304,15 @@ function panel(){
       S.nodes=S.nodes.filter(x=>x.id!==d.id);S.edges=S.edges.filter(g=>g.a!==d.id&&g.b!==d.id);sel=null;save();render();panel()};
   }else{
     const g=S.edges.find(x=>x.id===sel.id);if(!g){sel=null;P.hidden=true;return}
-    P.innerHTML=`<h3>${esc(N(g.a).name)} ↔ ${esc(N(g.b).name)}</h3><label>관계 (선 위에 표시)<input type="text" id="lb" maxlength="16" placeholder="예: 소꿉친구" value="${esc(g.label)}"></label><div>선 색상<div class="sw">${PRESETS.map((t,i)=>`<div><button data-c="${i}" style="--c:var(--c${i})" class="${g.c===i?'on':''}" aria-label="${t}"></button><span>${t}</span></div>`).join('')}</div></div><button id="dl">관계 삭제</button>`;
+    const duo=g.type==='duo',sw=(k,cur)=>`<div class="sw">${PRESETS.map((t,i)=>`<div><button data-${k}="${i}" style="--c:var(--c${i})" class="${cur===i?'on':''}" aria-label="${t}"></button><span>${t}</span></div>`).join('')}</div>`,A=esc(N(g.a).name),B=esc(N(g.b).name);
+    P.innerHTML=`<h3>${A} ${duo?'⇄':'↔'} ${B}</h3><div class="seg2"><button data-ty="line" class="${duo?'':'on'}">기본 선</button><button data-ty="duo" class="${duo?'on':''}">주고받는 선</button></div>`+
+    (duo?`<label>${A} → ${B}<input type="text" id="lb" maxlength="16" placeholder="${A}가 보는 ${B}" value="${esc(g.label)}"></label><div>선 색상${sw('c',g.c)}</div><label>${B} → ${A}<input type="text" id="lb2" maxlength="16" placeholder="${B}가 보는 ${A}" value="${esc(g.label2||'')}"></label><div>선 색상${sw('k',g.c2==null?g.c:g.c2)}</div>`
+    :`<label>관계 (선 위에 표시)<input type="text" id="lb" maxlength="16" placeholder="예: 소꿉친구" value="${esc(g.label)}"></label><div>선 색상${sw('c',g.c)}</div>`)+`<button id="dl">관계 삭제</button>`;
+    P.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{g.type=b.dataset.ty;if(g.type==='duo'&&g.c2==null)g.c2=g.c;save();render();panel()});
     q('#lb').oninput=e=>{g.label=e.target.value;save();render()};
+    if(q('#lb2'))q('#lb2').oninput=e=>{g.label2=e.target.value;save();render()};
     P.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{g.c=+b.dataset.c;save();render();panel()});
+    P.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{g.c2=+b.dataset.k;save();render();panel()});
     q('#dl').onclick=()=>{S.edges=S.edges.filter(x=>x.id!==g.id);sel=null;save();render();panel()};
   }
 }
@@ -327,6 +346,7 @@ async function savePng(){
   const N=id=>S.nodes.find(n=>n.id===id),col=i=>v('--c'+i)||'#888',ew=parseFloat(v('--ew'))||3,chips=[];
   g.lineCap='round';
   for(const e of S.edges){const a=N(e.a),b=N(e.b);if(!a||!b)continue;
+    if(e.type==='duo'){for(const s of duoSegs(e,a,b)){const [x0,y0,,,x1,y1]=s.q,[ax,ay,ux,uy]=s.arr;g.strokeStyle=g.fillStyle=col(s.c);g.lineWidth=ew;g.beginPath();g.moveTo(x0,y0);g.lineTo(x1-ux*12,y1-uy*12);if(t==='themis'){g.shadowColor=col(s.c);g.shadowBlur=8}g.stroke();g.shadowBlur=0;g.beginPath();g.moveTo(ax,ay);g.lineTo(ax-ux*16-uy*8,ay-uy*16+ux*8);g.lineTo(ax-ux*16+uy*8,ay-uy*16-ux*8);g.closePath();g.fill();if(s.t)chips.push([s.t,s.m[0],s.m[1]])}continue}
     const cx=(a.x+b.x)/2-(b.y-a.y)*.08,cy=(a.y+b.y)/2+(b.x-a.x)*.08;
     g.strokeStyle=col(e.c);g.lineWidth=ew;g.beginPath();g.moveTo(a.x,a.y);g.quadraticCurveTo(cx,cy,b.x,b.y);
     if(t==='themis'){g.shadowColor=col(e.c);g.shadowBlur=8}g.stroke();g.shadowBlur=0;
