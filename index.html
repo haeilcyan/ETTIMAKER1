@@ -265,6 +265,10 @@ const N=id=>S.nodes.find(n=>n.id===id);
 const pt=ev=>{const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
 function fit(){vb.h=vb.w*svg.clientHeight/svg.clientWidth}
 
+async function bgImg(cw,ch){
+  const cs=getComputedStyle(document.body),b=cs.getPropertyValue('--bg').trim()||'none',p=cs.getPropertyValue('--pat').trim()||'none';
+  const x=`<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}"><foreignObject width="${cw}" height="${ch}"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${cw}px;height:${ch}px;background:${esc(b)}"><div style="position:absolute;left:0;top:0;right:0;bottom:0;background:${esc(p)}"></div></div></foreignObject></svg>`;
+  return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)})}
 const ldv=n=>new Promise(r=>{const m=/url\((["']?)(.*?)\1\)/s.exec(getComputedStyle(document.body).getPropertyValue(n));if(!m)return r(null);const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=m[2]});
 const ang=(dx,dy)=>{if(S.ls==='classic')return 0;let a=Math.atan2(dy,dx)*180/Math.PI;if(a>90)a-=180;if(a<-90)a+=180;return a.toFixed(1)};
 const tc=i=>{let h=getComputedStyle(document.body).getPropertyValue('--c'+i).trim().replace('#','');if(h.length===3)h=[...h].map(c=>c+c).join('');const n=parseInt(h,16);if(h.length!==6||isNaN(n))return'#fff';return(.299*(n>>16)+.587*(n>>8&255)+.114*(n&255))/255>.62?'#111':'#fff'};
@@ -414,7 +418,8 @@ async function savePng(){
   const lin=st=>{const q=g.createLinearGradient(x0,y0,x0,y0+H);st.forEach(s=>q.addColorStop(s[0],s[1]));return q},
   rad=(cx,cy,r,st)=>{const q=g.createRadialGradient(cx,cy,0,cx,cy,r);st.forEach(s=>q.addColorStop(s[0],s[1]));return q},
   fill=f=>{g.fillStyle=f;g.fillRect(x0,y0,W,H)};
-  if(t==='sketch'){fill('#fbf6e9');for(let y=y0+16;y<y0+H;y+=32){g.beginPath();g.arc(x0+22,y,5,0,7);g.fillStyle='#2b2b2b';g.fill();g.lineWidth=2;g.strokeStyle='#cfc7b5';g.stroke()}}
+  let ok=false;try{const sc2=Math.max(.2,svg.clientWidth/vb.w),bi=await bgImg(Math.round(W*sc2),Math.round(H*sc2));if(bi){const tcv=document.createElement('canvas');tcv.width=tcv.height=2;const tg=tcv.getContext('2d');tg.drawImage(bi,0,0,2,2);tg.getImageData(0,0,1,1);g.drawImage(bi,x0,y0,W,H);ok=true}}catch(e){ok=false}
+  if(!ok){if(t==='sketch'){fill('#fbf6e9');for(let y=y0+16;y<y0+H;y+=32){g.beginPath();g.arc(x0+22,y,5,0,7);g.fillStyle='#2b2b2b';g.fill();g.lineWidth=2;g.strokeStyle='#cfc7b5';g.stroke()}}
   else if(t==='summer'){fill(lin([[0,'#74ccff'],[.45,'#3d96ff'],[1,'#2a50d8']]));fill(rad(x0+W*.85,y0,W*.6,[[0,'rgba(255,255,255,.55)'],[1,'rgba(255,255,255,0)']]))}
   else if(t==='ops'){fill(lin([[0,'#151b13'],[1,'#0a0e09']]));fill(rad(x0+W*.5,y0+H*.4,Math.max(W,H)*.7,[[0,'rgba(60,80,48,.3)'],[1,'rgba(60,80,48,0)']]));g.lineWidth=1;g.strokeStyle='rgba(190,210,160,.06)';for(let x=x0;x<x0+W;x+=64){g.beginPath();g.moveTo(x,y0);g.lineTo(x,y0+H);g.stroke()}for(let y=y0;y<y0+H;y+=64){g.beginPath();g.moveTo(x0,y);g.lineTo(x0+W,y);g.stroke()}g.strokeStyle='rgba(166,224,122,.18)';for(const r of [70,140,210]){g.beginPath();g.arc(x0+50,y0+H-50,r,0,7);g.stroke()}g.strokeStyle='rgba(232,163,61,.26)';{const cx=x0+W-120,cy=y0+120;g.beginPath();g.arc(cx,cy,90,0,7);g.moveTo(cx,cy-90);g.lineTo(cx,cy+90);g.moveTo(cx-90,cy);g.lineTo(cx+90,cy);g.stroke()}}
   else if(t==='themis'){fill(lin([[0,'#101a52'],[1,'#050918']]));fill(rad(x0+W/2,y0-H*.1,Math.max(W,H),[[0,'#2b3f9a'],[.6,'rgba(16,26,82,0)']]))}
@@ -423,6 +428,7 @@ async function savePng(){
   if(t==='summer'){fill(rad(x0+W*.82,y0+H*.12,150,[[0,'rgba(255,255,255,.3)'],[1,'rgba(255,255,255,0)']]));g.lineWidth=1.5;g.strokeStyle='rgba(255,255,255,.4)';[[.12,.58,13],[.16,.4,8],[.88,.46,17],[.78,.3,10]].forEach(([a,b,r])=>{g.beginPath();g.arc(x0+W*a,y0+H*b,r,0,7);g.stroke()});dI('--wv',x0,y0+H-150,W,150);for(let x=x0;x<x0+W;x+=72)dI('--sg',x,y0+H-36,72,36)}
   else if(t==='themis'){g.lineWidth=1;g.strokeStyle='rgba(170,190,255,.08)';for(let r=130;r<Math.max(W,H);r+=131){g.beginPath();g.arc(x0+W/2,y0+H*.46,r,0,7);g.stroke()}const s=Math.min(640,W*.96,H*.96);dI('--sc',x0+(W-s)/2,y0+(H-s)/2,s,s);const kw=Math.min(300,W*.5);dI('--ck',x0+24,y0+24,kw,kw*.625);g.fillStyle='rgba(190,205,255,.45)';g.fillRect(x0+14,y0+14,28,2);g.fillRect(x0+14,y0+14,2,28);g.fillRect(x0+W-42,y0+H-16,28,2);g.fillRect(x0+W-16,y0+H-42,2,28)}
   else if(t==='apsu'){const sh=Math.min(260,H*.38);dI('--sk',x0,y0+H-sh,W,sh)}
+  }
   const N=id=>S.nodes.find(n=>n.id===id),col=i=>v('--c'+i)||'#888',ew=parseFloat(v('--ew'))||3,chips=[];
   g.lineCap='round';
   for(const o of S.groups||[]){const z=gcirc(o);if(!z)continue;const gc=col(o.c);
